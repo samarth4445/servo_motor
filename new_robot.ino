@@ -1,19 +1,24 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
-#include <ArduinoJson.h>
 #include <Servo.h>
+#include <ArduinoJson.h>
 
 const char* ssid = "NIMBARGI"; 
 const char* password = "samarth@2506";
 
-int servoPin25 = 25;
-int servoPin26 = 26;
-int servoPin27 = 27;
+int servoPin1 = 25;
+int servoPin2 = 26;
+int servoPin3 = 27;
+
+int directions[3];
+
 
 const char* serverName = "http://192.168.0.102:5000/control-get";
 
 Servo servo;
+Servo servo2;
+Servo servo3;
 
 int position = 0;
 
@@ -21,6 +26,10 @@ void setup() {
   // put your setup code here, to run once:
   
   Serial.begin(115200);
+
+  servo.attach(servoPin1);
+  servo2.attach(servoPin2);
+  servo3.attach(servoPin3);
 
 
 
@@ -41,18 +50,52 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  JsonObject& control = getControl();
-  int servoAddress = int(control["servoAddress"]);
+  JsonObject control = getControl();
 
-  Serial.println(position);
+  directions[0] = int(control["1"]);
+  directions[1] = int(control["2"]);
+  directions[2] = int(control["3"]);
 
 
-  if(servoAddress !=0 ){
-    servoRotate(servoAddress);     
+  // for(int i=1; i<=3; i++){
+  //   String j = String(i);
+  //   directions[i-1] = int(control[j]);
+  //   delay(0);
+  // }
+    Serial.println(directions[0]);
+
+
+  //int servoAddress = int(control["servoAddress"]);
+
+
+  servoRotateNew(directions[0], directions[1], directions[2]); 
+
+}
+
+void servoRotateNew(int direction1, int direction2, int direction3){
+  int rotate1;
+  int rotate2;
+  int rotate3;
+
+  rotate1 = getRotationValue(direction1);
+  rotate2 = getRotationValue(direction2);
+  rotate3 = getRotationValue(direction3);
+
+  servo.write(rotate1);
+  servo2.write(rotate2);
+  servo3.write(rotate3);
+}
+
+int getRotationValue(int direction){
+  if(direction == 1){
+    return 0;
   }
-  else{
-    servo.detach();
-  } 
+  else if(direction == -1){
+    return 180;
+  }
+  else if(direction == 0){
+    return 90;
+  }
 }
 
 void servoRotate(int servoAddress){
@@ -69,6 +112,20 @@ void servoRotate(int servoAddress){
   }
 }
 
+// int servoMApping(int servoAddress){
+//   if(servoAddress == 1){
+//     return servoPin1;
+//   }
+//   else if(servoAddress == 2){
+//     return servoPin2;
+//   }
+//   else if(servoAddress == 3){
+//     return servoPin3;
+//   }
+
+//   return 0;
+// }
+
 int convertToInt(char* a, int size)  // from string to int
 {
     int i;
@@ -79,15 +136,18 @@ int convertToInt(char* a, int size)  // from string to int
     return s.toInt();
 }
 
-JsonObject& getControl(){           // GET request to the server. Used a function just to make the code more readable.
+JsonObject getControl(){           // GET request to the server. Used a function just to make the code more readable.
 
-  StaticJsonBuffer<200> jsonBuffer;
+  StaticJsonDocument<200> jsonBuffer;
 
 
   String controlJson = httpGETRequest(serverName);
-  JsonObject& root = jsonBuffer.parseObject(controlJson);
+  deserializeJson(jsonBuffer, controlJson);
+  JsonObject control = jsonBuffer.as<JsonObject>();
+  //JsonObject& root = jsonBuffer.parseObject(controlJson);
 
-  return root;
+  return control;
+
 }
 
 String httpGETRequest(const char* serverName) {  // ye code chapa hai
